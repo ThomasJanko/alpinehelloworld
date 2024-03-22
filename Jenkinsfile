@@ -3,9 +3,6 @@ pipeline {
        ID_DOCKER = "${ID_DOCKER_PARAMS}"
        IMAGE_NAME = "alpinehelloworld"
        IMAGE_TAG = "latest"
-          // PORT_EXPOSED = "32768"
-       STAGING = "${ID_DOCKER}-staging"
-       PRODUCTION = "${ID_DOCKER}-production"
      }
      agent none
      stages {
@@ -55,14 +52,13 @@ pipeline {
      stage ('Login and Push Image on docker hub') {
           agent any
         environment {
-           DOCKERHUB_PASSWORD  = credentials('dockerhub')
+           DOCKERHUB_PASSWORD = credentials('dockerhub')
         }            
           steps {
              script {
                sh '''
-                   echo "---------------------------- DEBUG: Trying to log to DockerHUB -----------------------"
-                   echo $DOCKERHUB_PASSWORD_PSW | docker login -u $ID_DOCKER --password-stdin
-                   docker push $ID_DOCKER/$IMAGE_NAME:$IMAGE_TAG
+                    echo $DOCKERHUB_PASSWORD_PSW | docker login -u ${ID_DOCKER} --password-stdin
+                    docker push ${ID_DOCKER}/$IMAGE_NAME:$IMAGE_TAG
                '''
              }
           }
@@ -74,21 +70,18 @@ pipeline {
             }
       agent any
       environment {
-          HEROKU_API_KEY = credentials('heroku_api_key')
+          RENDER_STAGING_HOOKS = credentials('render_staging_hooks')
       }  
       steps {
           script {
             sh '''
-              npm i -g heroku@7.68.0
-              heroku container:login
-              heroku create $STAGING || echo "project already exist"
-              heroku container:push -a $STAGING web
-              heroku container:release -a $STAGING web
+               echo "Staging"
+               echo $RENDER_STAGING_HOOKS
+               curl $RENDER_STAGING_HOOKS
             '''
           }
         }
      }
-
 
 
      stage('Push image in production and deploy it') {
@@ -97,16 +90,12 @@ pipeline {
             }
       agent any
       environment {
-          HEROKU_API_KEY = credentials('heroku_api_key')
+          RENDER_PRODUCTION_HOOKS = credentials('render_production_hooks')
       }  
       steps {
           script {
             sh '''
-              npm i -g heroku@7.68.0
-              heroku container:login
-              heroku create $PRODUCTION || echo "project already exist"
-              heroku container:push -a $PRODUCTION web
-              heroku container:release -a $PRODUCTION web
+              curl $RENDER_PRODUCTION_HOOKS
             '''
           }
         }
